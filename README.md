@@ -111,16 +111,30 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 NOTIFICATION_EMAIL=your@email.com
 ```
 
-### 3. Initialize the database
+### 3. Mount the Database (Supabase)
 
-Apply these SQL files in the Supabase SQL Editor in order:
+This project uses Supabase (PostgreSQL) as its live data store. The database ships empty — signals are generated in real time by the scanner, not bundled with the repo.
 
-```
-database/schema_export.sql
-database/security_policies.sql
-database/seed_data.sql
-database/backtest_history_migration.sql
-```
+**a. Create a Supabase project**
+
+Log in at [supabase.com](https://supabase.com), create a new project, and copy your **Project URL** and **service role key** from **Settings → API** into your `.env`.
+
+**b. Open the SQL Editor**
+
+In the Supabase left-hand sidebar, click the **SQL Editor** icon (`>_`).
+
+**c. Run the setup scripts in order**
+
+Open each file from the `/database` folder in this repo, copy its contents into the SQL Editor, and run it. The order is critical:
+
+| # | File | What it does |
+|---|---|---|
+| 1 | `schema_export.sql` | Creates all five tables |
+| 2 | `security_policies.sql` | Applies Row Level Security (RLS) rules |
+| 3 | `seed_data.sql` | Seeds the 23-ticker watchlist |
+| 4 | `backtest_history_migration.sql` | Adds the backtest audit table |
+
+> **Your database will be empty after this step — that is expected.** Alpha Terminal is a live-data engine. It has no historical data to ship because the signals it generates are tied to real Polymarket markets at the moment of analysis. To populate it for the first time, launch the app and hit **🧪 Quick Scan** in the sidebar.
 
 ---
 
@@ -145,7 +159,9 @@ Opens at `http://localhost:8501`. The sidebar is your control center:
 | **🔄 Refresh** | Pulls the latest signals from the database without re-running |
 | **🤖 Automation** | Sets a cron schedule so harvests run unattended (e.g. every 4 h) |
 
-As the harvest runs, the page switches to a live monitor: real-time progress bar, colour-coded log feed, and a Terminate button. The moment it completes, the Signal Terminal auto-refreshes and any score ≥ 8 signals have already hit your Discord.
+**First time?** Hit **🧪 Quick Scan** — it processes the first 5 markets, costs zero meaningful quota, and populates the Signal Terminal in under 30 seconds. Once you can see signals in the table, the full pipeline is confirmed working. Then hit **🚀 Full Harvest** to go live.
+
+As a harvest runs, the page switches to a live monitor: real-time progress bar, colour-coded log feed, and a Terminate button. The moment it completes, the Signal Terminal auto-refreshes and any score ≥ 8 signals have already hit your Discord.
 
 Press Ctrl+C in the terminal for a clean shutdown.
 
