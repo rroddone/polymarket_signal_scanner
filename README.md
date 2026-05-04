@@ -72,9 +72,22 @@ Polymarket is one of the world's most liquid real-money prediction markets. Hund
 
 ---
 
-## Setup
+## Prerequisites
 
-### 1. Clone and create the virtual environment
+Before you run anything, have these four things ready:
+
+| Requirement | Purpose | Where to get it |
+|---|---|---|
+| **Supabase project** | Database for signals, markets, and backtest history | [supabase.com](https://supabase.com) — free tier |
+| **Groq API key** | Primary LLM — ultra-fast inference, 30 RPM free tier | [console.groq.com](https://console.groq.com) |
+| **Gemini API key** | Fallback LLM — activates if Groq hits its rate ceiling | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
+| **Discord Webhook URL** | Real-time signal alerts to your phone | See the [Discord Alerts](#discord-alerts--real-time-signal-delivery) section below |
+
+---
+
+## Installation
+
+### 1. Create the virtual environment
 
 ```bash
 python3 -m venv venv
@@ -100,7 +113,7 @@ NOTIFICATION_EMAIL=your@email.com
 
 ### 3. Initialize the database
 
-Apply SQL files from `database/` in the Supabase SQL Editor in this order:
+Apply these SQL files in the Supabase SQL Editor in order:
 
 ```
 database/schema_export.sql
@@ -111,45 +124,58 @@ database/backtest_history_migration.sql
 
 ---
 
-## How to Run
+## Getting Started — The Control Center
 
-All operations go through a single entrypoint.
+There are two ways to pilot the scanner. For most users, **Option A is all you need.**
 
-### Harvest — ingest and analyze markets
+### Option A: The Alpha Terminal (Recommended)
 
-```bash
-python main.py --harvest
-```
-
-Groq is tried first at 2.5 s/market. On a 429, the script reads the `Retry-After` header and waits the exact window (up to 3× per market). Gemini activates on persistent Groq failure. Discord alerts fire for `relevance_score ≥ 8`. A circuit breaker exits on 5 consecutive parse failures to protect free-tier quota.
-
-Use `--limit N` to test logic changes on the first N markets only:
-
-```bash
-python main.py --harvest --limit 5
-```
-
-### Backtest — validate signal accuracy
-
-```bash
-python main.py --backtest --limit 10
-```
-
-Fetches 5-min yfinance bars, maps each signal's `created_at` to its entry price, and scores HIT or MISS. Results are written to `backtest_history` in Supabase: one row per ticker plus one aggregate row (`ticker IS NULL`) per run.
-
-Run without `--limit` for the full backtest over all signals:
-
-```bash
-python main.py --backtest
-```
-
-### Dashboard — Alpha Terminal
+Launch the dashboard and run everything from the UI:
 
 ```bash
 python main.py --serve
 ```
 
-Opens at `http://localhost:8501`. Press Ctrl+C for a clean shutdown.
+Opens at `http://localhost:8501`. The sidebar is your control center:
+
+| Button | What it does |
+|---|---|
+| **🚀 Full Harvest** | Scans all active Polymarket markets — thorough, production run |
+| **🧪 Quick Scan** | Scans the first 5 markets — instant feedback, zero quota burn |
+| **🔄 Refresh** | Pulls the latest signals from the database without re-running |
+| **🤖 Automation** | Sets a cron schedule so harvests run unattended (e.g. every 4 h) |
+
+As the harvest runs, the page switches to a live monitor: real-time progress bar, colour-coded log feed, and a Terminate button. The moment it completes, the Signal Terminal auto-refreshes and any score ≥ 8 signals have already hit your Discord.
+
+Press Ctrl+C in the terminal for a clean shutdown.
+
+### Option B: Command Line Interface
+
+For automation, cron jobs, or when you want direct control:
+
+```bash
+# Full harvest — ingest and analyze all unanalyzed markets
+python main.py --harvest
+
+# Quick test — first 5 markets only, safe for logic changes
+python main.py --harvest --limit 5
+
+# Backtest — validate signal accuracy against intraday price data
+python main.py --backtest --limit 20
+
+# Full backtest over all signals
+python main.py --backtest
+```
+
+Groq runs first at 2.5 s/market. On a 429, the pipeline reads the `Retry-After` header and waits the exact window — no guessing. Gemini 2.0 Flash takes over on persistent failure. Discord alerts fire mid-harvest for every `relevance_score ≥ 8`.
+
+For fully automated background harvesting:
+
+```bash
+bash harvest.sh   # cron-safe; manages harvest.lock to prevent duplicate runs
+```
+
+Use the **Automation panel** in the dashboard sidebar to set the schedule (hours + minutes) without touching crontab directly.
 
 ---
 
@@ -199,23 +225,16 @@ Alerts fire mid-harvest. If a 150-market run finds a score-9 NVDA signal on mark
 
 ---
 
-## Dashboard Features
+## What the Dashboard Shows
 
-**KPI Cards** (sourced from latest `backtest_history` aggregate row)
-- Global Win Rate · High-Conviction Accuracy (score ≥ 8) · Signals (24h) · Top Performing Ticker
+**Four KPI cards** sit at the top of every page, sourced live from the latest backtest run:
+- Global Win Rate · High-Conviction Accuracy (score ≥ 8) · Signals Generated (24h) · Top Performing Ticker
 
-**Signal Terminal tab**
-- Full searchable dataframe with keyword filter across market question, ticker, and rationale
-- Sidebar: Ticker multiselect · Sentiment filter · Conviction Score slider
+**Signal Terminal tab** — the live signal feed. Search and filter by ticker, market question, or rationale text. Sidebar controls narrow by Sentiment and Conviction Score. Every row links directly back to its Polymarket event.
 
-**Quant Audit tab**
-- Accuracy by Asset: horizontal bar chart, emerald ≥ 50% / crimson < 50%, 50% dotted baseline
-- Backtest Log: 15 most recent per-ticker rows across all runs
+**Quant Audit tab** — quantitative validation. A horizontal bar chart shows win rate per ticker from the most recent backtest (emerald ≥ 50%, crimson < 50%, 50% dotted baseline). Below it, the Backtest Log shows the 15 most recent per-ticker rows across all runs.
 
-**Sidebar controls**
-- Refresh · Full Harvest · Small Harvest (--limit 5) · Automation (cron schedule) · Audit Log viewer
-
-**Live Harvest Monitor** — when a harvest runs, the page switches to an exclusive monitor view (refreshes every 2s) with a progress bar, colour-coded log tail, Force Exit, and Terminate controls. Returns to the terminal automatically on completion.
+**Audit Log** — toggle the 📜 icon in the sidebar to open a searchable, reversed log viewer showing the last 500 lines of `automation.log`. Filter by ticker, status code, or keyword.
 
 ---
 
