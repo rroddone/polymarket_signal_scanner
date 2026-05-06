@@ -1,11 +1,15 @@
 """Manage the harvest.sh cron schedule and lock-file state."""
 
+import shutil
 import subprocess
 from pathlib import Path
 
 from src.core.config import LOCK_FILE, PROJECT_ROOT
 
 HARVEST_SH: str = str(PROJECT_ROOT / "harvest.sh")
+
+# False on Streamlit Cloud and any environment without crontab in PATH
+CRON_AVAILABLE: bool = shutil.which("crontab") is not None
 
 
 # ---------------------------------------------------------------------------
@@ -64,15 +68,21 @@ def parse_cron_to_hm(cron_str: str) -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 
 def _read_crontab() -> list[str]:
-    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
-    if result.returncode != 0:
+    try:
+        result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+        if result.returncode != 0:
+            return []
+        return result.stdout.splitlines()
+    except FileNotFoundError:
         return []
-    return result.stdout.splitlines()
 
 
 def _write_crontab(lines: list[str]) -> None:
     content = "\n".join(lines) + "\n" if lines else ""
-    subprocess.run(["crontab", "-"], input=content, text=True, check=True)
+    try:
+        subprocess.run(["crontab", "-"], input=content, text=True, check=True)
+    except FileNotFoundError:
+        pass
 
 
 def get_current_schedule() -> dict:

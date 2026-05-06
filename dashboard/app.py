@@ -31,7 +31,7 @@ from src.core.config import (
     SUPABASE_SERVICE_ROLE_KEY,
     SUPABASE_URL,
 )
-from src.utils.cron_utils import clear_lock, get_current_schedule, is_processing, update_schedule
+from src.utils.cron_utils import CRON_AVAILABLE, clear_lock, get_current_schedule, is_processing, update_schedule
 
 PROJECT_ROOT = _PROJECT_ROOT
 
@@ -527,38 +527,45 @@ with st.sidebar:
                 pass
 
     st.markdown("#### 🤖 Automation")
-    _enabled = st.toggle(
-        "Enable Background Agent",
-        value=_cron["active"],
-        key="cron_enabled",
-        on_change=_on_agent_toggle,
-    )
-
-    _col_h, _col_m = st.columns(2)
-    with _col_h:
-        _sel_hours = st.selectbox(
-            "Hours", options=_hour_options,
-            index=_hour_options.index(_cron_h), disabled=not _enabled, key="cron_hours",
+    if not CRON_AVAILABLE:
+        st.info(
+            "Scheduling is only available in local/VPS environments. "
+            "Manual harvesting is enabled.",
+            icon="ℹ️",
         )
-    with _col_m:
-        _sel_minutes = st.selectbox(
-            "Minutes", options=_min_options,
-            index=_min_options.index(_cron_m), disabled=not _enabled, key="cron_minutes",
-        )
-
-    if st.button("Update Schedule", use_container_width=True, key="cron_update", disabled=not _enabled):
-        try:
-            update_schedule(_sel_hours, _sel_minutes, _enabled)
-            st.success(f"Scheduled: {_freq_label(_sel_hours, _sel_minutes)}.", icon="✅")
-        except Exception as _cron_err:
-            st.error(f"Failed: {_cron_err}")
-
-    if _bg_running:
-        st.info("🤖 Agent harvesting now…")
-    elif _cron["active"]:
-        st.caption(f"🟢 {_freq_label(_cron_h, _cron_m)}")
     else:
-        st.caption("⚪ Agent inactive")
+        _enabled = st.toggle(
+            "Enable Background Agent",
+            value=_cron["active"],
+            key="cron_enabled",
+            on_change=_on_agent_toggle,
+        )
+
+        _col_h, _col_m = st.columns(2)
+        with _col_h:
+            _sel_hours = st.selectbox(
+                "Hours", options=_hour_options,
+                index=_hour_options.index(_cron_h), disabled=not _enabled, key="cron_hours",
+            )
+        with _col_m:
+            _sel_minutes = st.selectbox(
+                "Minutes", options=_min_options,
+                index=_min_options.index(_cron_m), disabled=not _enabled, key="cron_minutes",
+            )
+
+        if st.button("Update Schedule", use_container_width=True, key="cron_update", disabled=not _enabled):
+            try:
+                update_schedule(_sel_hours, _sel_minutes, _enabled)
+                st.success(f"Scheduled: {_freq_label(_sel_hours, _sel_minutes)}.", icon="✅")
+            except Exception as _cron_err:
+                st.error(f"Failed: {_cron_err}")
+
+        if _bg_running:
+            st.info("🤖 Agent harvesting now…")
+        elif _cron["active"]:
+            st.caption(f"🟢 {_freq_label(_cron_h, _cron_m)}")
+        else:
+            st.caption("⚪ Agent inactive")
 
     st.divider()
 
