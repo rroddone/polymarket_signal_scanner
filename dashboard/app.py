@@ -647,7 +647,7 @@ if _bg_running:
 # ---------------------------------------------------------------------------
 if harvest_clicked or small_harvest_clicked:
     _cmd = [
-        str(PROJECT_ROOT / "venv" / "bin" / "python"),
+        sys.executable,
         "-u",
         str(PROJECT_ROOT / "main.py"),
         "--harvest",

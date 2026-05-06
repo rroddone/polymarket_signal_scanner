@@ -2,6 +2,14 @@
 
 > Turn prediction market sentiment into actionable equity intelligence.
 
+## 🚀 Live Demo
+
+**[Alpha Terminal → Live on Streamlit Cloud](https://polymarketsignalscanner-284zlymjaoam9mhiuj5fcm.streamlit.app/)**
+
+> **Note:** For the best experience, use the **🧪 Quick Scan** button in the sidebar to generate live signals on your first visit.
+
+---
+
 Polymarket is one of the world's most liquid real-money prediction markets. Hundreds of millions of dollars are wagered on geopolitical, macro, and corporate events — events that also move public equities. Alpha Terminal harvests that signal, runs it through a dual-LLM analysis pipeline, and surfaces high-conviction trades through an institutional-grade terminal built for systematic research.
 
 ---

@@ -138,6 +138,12 @@
     - [x] Neutral signals excluded from all win-rate math (ticker and aggregate rows)
     - [x] Validated: `--backtest --limit 10` → 4 ticker rows (AAPL, GOOGL, MSTR, SPCE) + 1 aggregate in Supabase
 
+- [x] **Phase 22: Streamlit Cloud Deployment Prep (2026-05-06)**
+    - [x] `requirements.txt` — created with 12 pinned direct deps (streamlit, supabase, pandas, plotly, yfinance, groq, google-genai, httpx, requests, python-dotenv, pydantic, pyarrow)
+    - [x] `dashboard/app.py:649` — harvest subprocess command: `venv/bin/python` → `sys.executable` (Linux-compatible; works on any Python environment)
+    - [x] `src/core/config.py` — added `_get_secret()` helper: `os.getenv` first (covers .env + Streamlit Cloud env injection), then `st.secrets` fallback
+    - [x] `streamlit_app_secrets_template.toml` — created at project root; copy-paste into Streamlit Cloud console → Settings → Secrets
+
 - [ ] **Ongoing: Production Run & Monitoring**
     - [ ] Execute full harvest: `venv/bin/python main.py --harvest`
     - [ ] Run backtest after 9:30 AM ET: `venv/bin/python main.py --backtest`

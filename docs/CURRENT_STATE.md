@@ -1,4 +1,11 @@
 ## Last Action
+- **Session 18 — Streamlit Cloud Deployment Prep (2026-05-06): Complete**
+  - `requirements.txt` — Created. 12 pinned direct deps covering all imports across the full `src/` package.
+  - `dashboard/app.py` — Harvest subprocess spawn fixed: `venv/bin/python` → `sys.executable`. Safe on Linux cloud environments where no `venv/` directory exists.
+  - `src/core/config.py` — `_get_secret()` helper added. Reads `os.getenv` first (works for local `.env` and Streamlit Cloud env injection), then falls back to `st.secrets` directly. CLI modules (harvester, backtester) unaffected — `st.secrets` call is try/except guarded.
+  - `streamlit_app_secrets_template.toml` — Template created at project root. Contains all 5 required keys with placeholder values. Not staged (safe to commit as-is, contains no real credentials).
+  - **Known cloud limitations (not blocking):** `cron_utils.py` calls `crontab` CLI — the Automation sidebar panel will silently fail on Streamlit Cloud. `harvest.sh` is irrelevant on cloud. `main.py --serve` still references `venv/bin/streamlit` but that flag is not used on cloud.
+
 - **Session 17 — GitHub Pre-Push Polish (2026-05-04): Complete**
   - `dashboard/app.py` — Replaced `use_container_width=True` with `width="stretch"` on `st.dataframe` (×2) and `st.plotly_chart` (×1). Buttons retain `use_container_width` (still valid API, not a deprecation source).
   - `dashboard/app.py` — Removed sidebar "Agent pulse log snippet" (`st.code` block); debugging now via the in-dashboard Audit Log Browser and `logs/app.log`.
@@ -80,10 +87,9 @@
 | `backtest_history` | 6 | ✅ Enabled | ticker-aware: 1 row/ticker + 1 aggregate per run |
 
 ## Current Status
-- **Phases 1–20:** ✅ Complete. System fully production-ready.
-- **Ticker-Aware Backtesting:** ✅ Validated. `--backtest --limit 10` outputs correct per-ticker + aggregate console summary; 4 ticker rows + 1 aggregate confirmed in Supabase.
-- **Alpha Terminal Dashboard:** ✅ Validated. Clean startup, exit code 0 on Ctrl+C, no traceback.
-- **Next Step:** Run `venv/bin/python main.py --harvest` for a full production harvest cycle.
+- **Phases 1–22:** ✅ Complete. System fully production-ready and Streamlit Cloud deployment-ready.
+- **Streamlit Cloud Prep:** ✅ Complete. `requirements.txt` created, path fix applied, `st.secrets` fallback wired, secrets template created.
+- **Next Step:** Deploy to Streamlit Cloud. Set entry point to `dashboard/app.py`. Paste secrets from `streamlit_app_secrets_template.toml` into the Cloud console under Settings → Secrets.
 
 ## Known Blockers
 - None. System fully operational.
