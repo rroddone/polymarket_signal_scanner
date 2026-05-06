@@ -5,12 +5,17 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from src.core.config import LOCK_FILE, PROJECT_ROOT
+# Computed using stdlib only — before any src.* import that could raise.
+# False on Streamlit Cloud (STREAMLIT_RUNTIME_EXECUTABLE set) or any host
+# where the crontab binary is absent.
+CRON_AVAILABLE: bool = (
+    shutil.which("crontab") is not None
+    and not os.environ.get("STREAMLIT_RUNTIME_EXECUTABLE")
+)
+
+from src.core.config import LOCK_FILE, PROJECT_ROOT  # noqa: E402
 
 HARVEST_SH: str = str(PROJECT_ROOT / "harvest.sh")
-
-# False on Streamlit Cloud and any environment without crontab in PATH
-CRON_AVAILABLE: bool = shutil.which("crontab") is not None
 
 
 # ---------------------------------------------------------------------------
@@ -65,12 +70,11 @@ def parse_cron_to_hm(cron_str: str) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
-# Crontab I/O
+# Crontab I/O  (all paths safe when CRON_AVAILABLE is False)
 # ---------------------------------------------------------------------------
 
 def _read_crontab() -> list[str]:
-    # Streamlit Cloud sets this env var; skip the subprocess entirely
-    if os.environ.get("STREAMLIT_RUNTIME_EXECUTABLE"):
+    if not CRON_AVAILABLE:
         return []
     try:
         result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
@@ -82,6 +86,8 @@ def _read_crontab() -> list[str]:
 
 
 def _write_crontab(lines: list[str]) -> None:
+    if not CRON_AVAILABLE:
+        return
     content = "\n".join(lines) + "\n" if lines else ""
     try:
         subprocess.run(["crontab", "-"], input=content, text=True, check=True)
@@ -101,6 +107,8 @@ def get_current_schedule() -> dict:
 
 
 def update_schedule(hours: int, minutes: int, active: bool) -> None:
+    if not CRON_AVAILABLE:
+        return
     lines = [ln for ln in _read_crontab() if HARVEST_SH not in ln]
     if active:
         lines.append(f"{make_cron_expression(hours, minutes)} {HARVEST_SH}")

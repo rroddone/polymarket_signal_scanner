@@ -31,7 +31,20 @@ from src.core.config import (
     SUPABASE_SERVICE_ROLE_KEY,
     SUPABASE_URL,
 )
-from src.utils.cron_utils import CRON_AVAILABLE, clear_lock, get_current_schedule, is_processing, update_schedule
+try:
+    from src.utils.cron_utils import (
+        CRON_AVAILABLE,
+        clear_lock,
+        get_current_schedule,
+        is_processing,
+        update_schedule,
+    )
+except Exception:
+    CRON_AVAILABLE = False
+    def is_processing() -> bool: return False          # type: ignore[misc]
+    def clear_lock() -> None: pass                     # type: ignore[misc]
+    def get_current_schedule() -> dict: return {"active": False, "hours": 4, "minutes": 0}  # type: ignore[misc]
+    def update_schedule(*_a: object, **_kw: object) -> None: pass  # type: ignore[misc]
 
 PROJECT_ROOT = _PROJECT_ROOT
 
