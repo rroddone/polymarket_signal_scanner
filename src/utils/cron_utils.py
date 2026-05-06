@@ -5,9 +5,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
-# Computed using stdlib only — before any src.* import that could raise.
-# False on Streamlit Cloud (STREAMLIT_RUNTIME_EXECUTABLE set) or any host
-# where the crontab binary is absent.
+# ---------------------------------------------------------------------------
+# Environment check — stdlib only, evaluated before any src.* import.
+# CRON_AVAILABLE is False on Streamlit Cloud (STREAMLIT_RUNTIME_EXECUTABLE set)
+# or on any host where the crontab binary is absent.
+# ---------------------------------------------------------------------------
 CRON_AVAILABLE: bool = (
     shutil.which("crontab") is not None
     and not os.environ.get("STREAMLIT_RUNTIME_EXECUTABLE")
@@ -19,19 +21,23 @@ HARVEST_SH: str = str(PROJECT_ROOT / "harvest.sh")
 
 
 # ---------------------------------------------------------------------------
-# Lock file
+# Lock file  (no-op when CRON_AVAILABLE is False)
 # ---------------------------------------------------------------------------
 
 def is_processing() -> bool:
+    if not CRON_AVAILABLE:
+        return False
     return LOCK_FILE.exists()
 
 
 def clear_lock() -> None:
+    if not CRON_AVAILABLE:
+        return
     LOCK_FILE.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
-# Cron expression builders / parsers
+# Cron expression builders / parsers  (pure helpers, always safe)
 # ---------------------------------------------------------------------------
 
 def make_cron_expression(hours: int, minutes: int) -> str:
@@ -70,7 +76,7 @@ def parse_cron_to_hm(cron_str: str) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
-# Crontab I/O  (all paths safe when CRON_AVAILABLE is False)
+# Crontab I/O  (all paths guarded; [] / no-op when CRON_AVAILABLE is False)
 # ---------------------------------------------------------------------------
 
 def _read_crontab() -> list[str]:
@@ -95,7 +101,10 @@ def _write_crontab(lines: list[str]) -> None:
         pass
 
 
-def get_current_schedule() -> dict:
+def get_current_schedule() -> list | dict:
+    """Return [] when cron is unavailable; dict with schedule info otherwise."""
+    if not CRON_AVAILABLE:
+        return []
     for line in _read_crontab():
         stripped = line.strip()
         if HARVEST_SH in stripped and not stripped.startswith("#"):

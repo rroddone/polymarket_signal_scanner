@@ -515,38 +515,34 @@ with st.sidebar:
         st.caption(f"Primary: **{_PRIMARY_NAME}** | Failover: {_SECONDARY_NAME}")
 
     # --- Automation control ---
-    _cron = get_current_schedule()
-    _hour_options = list(range(24))
-    _min_options  = [0, 15, 30, 45]
-    _cron_h = _cron["hours"]   if _cron["hours"]   in _hour_options else 4
-    _cron_m = _cron["minutes"] if _cron["minutes"] in _min_options  else 0
-
-    def _freq_label(h: int, m: int) -> str:
-        if h == 0:
-            return f"Every {m} min"
-        if m == 0:
-            return f"Every {h}h"
-        return f"Every {h}h {m}m"
-
-    def _on_agent_toggle() -> None:
-        if not st.session_state.get("cron_enabled", False):
-            try:
-                update_schedule(
-                    st.session_state.get("cron_hours", 4),
-                    st.session_state.get("cron_minutes", 0),
-                    False,
-                )
-            except Exception:
-                pass
-
     st.markdown("#### 🤖 Automation")
     if not CRON_AVAILABLE:
-        st.info(
-            "Scheduling is only available in local/VPS environments. "
-            "Manual harvesting is enabled.",
-            icon="ℹ️",
-        )
+        st.info("Note: Automation features are disabled in this cloud environment.")
     else:
+        _cron = get_current_schedule()
+        _hour_options = list(range(24))
+        _min_options  = [0, 15, 30, 45]
+        _cron_h = _cron["hours"]   if _cron["hours"]   in _hour_options else 4
+        _cron_m = _cron["minutes"] if _cron["minutes"] in _min_options  else 0
+
+        def _freq_label(h: int, m: int) -> str:
+            if h == 0:
+                return f"Every {m} min"
+            if m == 0:
+                return f"Every {h}h"
+            return f"Every {h}h {m}m"
+
+        def _on_agent_toggle() -> None:
+            if not st.session_state.get("cron_enabled", False):
+                try:
+                    update_schedule(
+                        st.session_state.get("cron_hours", 4),
+                        st.session_state.get("cron_minutes", 0),
+                        False,
+                    )
+                except Exception:
+                    pass
+
         _enabled = st.toggle(
             "Enable Background Agent",
             value=_cron["active"],
