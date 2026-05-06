@@ -1,5 +1,6 @@
 """Manage the harvest.sh cron schedule and lock-file state."""
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -68,12 +69,15 @@ def parse_cron_to_hm(cron_str: str) -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 
 def _read_crontab() -> list[str]:
+    # Streamlit Cloud sets this env var; skip the subprocess entirely
+    if os.environ.get("STREAMLIT_RUNTIME_EXECUTABLE"):
+        return []
     try:
         result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
         if result.returncode != 0:
             return []
         return result.stdout.splitlines()
-    except FileNotFoundError:
+    except Exception:
         return []
 
 
@@ -81,7 +85,7 @@ def _write_crontab(lines: list[str]) -> None:
     content = "\n".join(lines) + "\n" if lines else ""
     try:
         subprocess.run(["crontab", "-"], input=content, text=True, check=True)
-    except FileNotFoundError:
+    except Exception:
         pass
 
 
