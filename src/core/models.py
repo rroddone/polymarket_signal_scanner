@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class MarketSignal(BaseModel):
@@ -21,23 +21,21 @@ class MarketSignal(BaseModel):
 
 
 class LLMAnalysisResult(BaseModel):
-    ticker: str
-    impact_type: str
-    rationale: str
-    relevance_score: int = Field(ge=1, le=10)
+    fundamental_reasoning: str
+    impact_type: Literal["Bullish", "Bearish", "Neutral", "None"]
+    final_ticker: str | None = None
+    relevance_score: int = Field(ge=0, le=10)
 
-    @field_validator("impact_type")
-    @classmethod
-    def normalise_impact(cls, v: str) -> str:
-        v = v.strip()
-        if v in ("Bullish", "Bearish", "Neutral"):
-            return v
-        lower = v.lower()
-        if "bullish" in lower:
-            return "Bullish"
-        if "bearish" in lower:
-            return "Bearish"
-        return "Neutral"
+    @model_validator(mode="after")
+    def enforce_none_consistency(self) -> "LLMAnalysisResult":
+        if self.impact_type == "None":
+            if self.final_ticker is not None:
+                raise ValueError("final_ticker must be null when impact_type is 'None'")
+            if self.relevance_score != 0:
+                raise ValueError("relevance_score must be 0 when impact_type is 'None'")
+        if self.final_ticker is None and self.relevance_score != 0:
+            raise ValueError("relevance_score must be 0 when final_ticker is null")
+        return self
 
 
 class BacktestSummary(BaseModel):

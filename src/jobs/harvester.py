@@ -166,12 +166,12 @@ class Harvester:
                 if validated is None:
                     skipped += 1
                 else:
-                    ticker          = validated["ticker"]
+                    ticker          = validated["final_ticker"]
                     relevance_score = validated["relevance_score"]
                     impact_type     = validated["impact_type"]
-                    rationale       = validated["rationale"]
+                    rationale       = validated["fundamental_reasoning"]
 
-                    if relevance_score < MIN_RELEVANCE_SCORE:
+                    if ticker is None or relevance_score < MIN_RELEVANCE_SCORE:
                         logger.info(
                             "  → No relevant ticker identified (score=%d). Skipping.",
                             relevance_score,

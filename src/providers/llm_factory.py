@@ -18,6 +18,8 @@ from src.core.config import (
     POLYMARKET_BASE,
     PRIMARY_LLM,
 )
+from pydantic import ValidationError
+
 from src.core.models import LLMAnalysisResult
 from src.utils.logger import GracefulExit
 
@@ -77,14 +79,70 @@ class LLMFactory:
     def build_prompt(question: str, tickers: list[str]) -> str:
         watchlist_str = ", ".join(tickers)
         return (
-            f"Hedge fund analyst. Rate how directly this prediction market outcome impacts a "
-            f"listed equity. Score conservatively — above 7 only for direct, material impact.\n"
-            f"RUBRIC: 9-10=core business/valuation direct hit; 7-8=strong correlated sector shift; "
-            f"5-6=indirect/speculative; 1-4=tenuous/atmospheric.\n"
+            "You are a quantitative equity analyst at a tier-1 macro hedge fund. Evaluate whether "
+            "a prediction market outcome has a DIRECT, MATERIAL transmission mechanism to a specific "
+            "publicly-traded US equity from the watchlist.\n\n"
+
+            "CHAIN OF THOUGHT MANDATE — before selecting any ticker you must first answer this "
+            "internally: 'Is there a direct, highly-documented supply chain, balance sheet, or "
+            "macroeconomic transmission mechanism connecting this event to a specific public US "
+            "equity? If the answer is tenuous or relies on generalized sentiment, you must reject it.'\n\n"
+
+            "REJECTION CRITERIA — set impact_type 'None', final_ticker null, relevance_score 0 if:\n"
+            "- Connection relies on vague sentiment or 'investor confidence' with no P&L line\n"
+            "- Event is a product announcement, date, or news item with no quantifiable impact\n"
+            "- Multiple tickers apply equally (diversified macro with no single primary vehicle)\n"
+            "- No specific revenue, cost, or balance-sheet line is affected\n\n"
+
+            "SCORING RUBRIC:\n"
+            "9-10 = Core business / direct balance-sheet hit\n"
+            "7-8  = Strong, documented sector transmission mechanism\n"
+            "5-6  = Material but one step removed\n"
+            "1-4  = Tenuous, atmospheric, or speculative\n"
+            "0    = No transmission mechanism — null ticker, impact_type 'None'\n\n"
+
+            "--- FEW-SHOT EXAMPLES ---\n\n"
+
+            "EXAMPLE 1 (Direct Macro Hit):\n"
+            'Market: "Will the Federal Reserve cut rates by 50bps or more at the September 2025 FOMC meeting?"\n'
+            "Tickers: SPY, JPM, BAC, XLF, TLT\n"
+            "Output: "
+            '{"fundamental_reasoning":"A 50bps rate cut directly expands equity multiples via a lower '
+            "DCF discount rate and compresses net interest margins for banks. SPY is the broadest and "
+            "most liquid transmission vehicle — the S&P 500 has a well-documented inverse relationship "
+            "with the Fed Funds rate through the equity risk premium. This is a primary macroeconomic "
+            'event with a concrete, immediate balance-sheet transmission to US equities.",'
+            '"impact_type":"Bullish","final_ticker":"SPY","relevance_score":9}\n\n'
+
+            "EXAMPLE 2 (Supply Chain Hit):\n"
+            'Market: "Will TSMC halt all Taiwan fab production for more than 72 hours due to conflict or disaster?"\n'
+            "Tickers: NVDA, AMD, AAPL, QCOM, INTC\n"
+            "Output: "
+            '{"fundamental_reasoning":"TSMC manufactures ~90% of advanced semiconductors below 7nm. '
+            "NVDA sources 100% of its GPU wafers from TSMC — the H100/H200/B200 data-center line "
+            "drives ~80% of NVDA revenue. A 72-hour halt creates an immediate wafer shortage and "
+            "revenue-miss risk documented in NVDA's 10-K under single-source supplier risk. "
+            'Transmission: TSMC halt → wafer gap → NVDA revenue miss. Direct supply-chain hit.",'
+            '"impact_type":"Bearish","final_ticker":"NVDA","relevance_score":8}\n\n'
+
+            "EXAMPLE 3 (Hard Rejection):\n"
+            'Market: "Will OpenAI announce a release date for SearchGPT before December 31?"\n'
+            "Tickers: GOOGL, MSFT, META, AAPL\n"
+            "Output: "
+            '{"fundamental_reasoning":"While OpenAI competes in search advertising with GOOGL, an '
+            "announcement of a release DATE is a sentiment event, not a balance-sheet event. GOOGL "
+            "search revenue will not change on announcement day — impact depends on future user "
+            "adoption and advertiser behavior, neither quantifiable from this single event. "
+            'No direct supply-chain, revenue, or cost transmission exists at announcement time. Rejected as noise.",'
+            '"impact_type":"None","final_ticker":null,"relevance_score":0}\n\n'
+
+            "--- NOW ANALYZE ---\n"
             f'Market: "{question}"\n'
             f"Tickers: {watchlist_str}\n\n"
-            f"Reply with ONLY valid JSON — no markdown, no prose, no extra keys:\n"
-            f'{{"ticker":"MSTR","impact_type":"Bearish","rationale":"one sentence","relevance_score":9}}'
+
+            "Reply with ONLY valid JSON — no markdown, no prose, no extra keys:\n"
+            '{"fundamental_reasoning":"<chain-of-thought>","impact_type":"Bullish|Bearish|Neutral|None",'
+            '"final_ticker":"TICKER or null","relevance_score":0}'
         )
 
     @staticmethod
@@ -113,8 +171,11 @@ class LLMFactory:
         try:
             validated = LLMAnalysisResult(**raw)
             return validated.model_dump()
+        except ValidationError as e:
+            logger.warning("LLM schema validation failed: %s — raw: %s", e, raw)
+            return None
         except Exception as e:
-            logger.warning("LLM result validation failed: %s — raw: %s", e, raw)
+            logger.warning("LLM result parsing error: %s — raw: %s", e, raw)
             return None
 
     # ------------------------------------------------------------------
@@ -216,7 +277,7 @@ class LLMFactory:
                     messages=[{"role": "user", "content": prompt}],
                     model=GROQ_MODEL,
                     temperature=0.1,
-                    max_tokens=200,
+                    max_tokens=500,
                 )
                 text   = completion.choices[0].message.content or ""
                 parsed = self.parse_llm_response(text)
@@ -249,7 +310,7 @@ class LLMFactory:
                 response = self.gemini.models.generate_content(
                     model=GEMINI_MODEL,
                     contents=prompt,
-                    config=types.GenerateContentConfig(tools=[], temperature=0.1, max_output_tokens=300),
+                    config=types.GenerateContentConfig(tools=[], temperature=0.1, max_output_tokens=600),
                 )
                 text      = self._extract_text(response)
                 citations = self._extract_citations(response)
