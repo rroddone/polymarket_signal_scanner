@@ -5,7 +5,7 @@ import sys
 import time
 from typing import Any
 
-from src.core.config import LOG_FILE, PRIMARY_LLM, PROJECT_ROOT
+from src.core.config import PRIMARY_LLM
 from src.core.filters import MarketPreFilter
 from src.providers.llm_factory import (
     LLMFactory,
@@ -112,7 +112,6 @@ class Harvester:
             category:  str   = market.get("category", "Unknown")
             slug: str | None = market.get("slug")
 
-            print(f"DEBUG: Starting analysis for market {i+1}/{len(markets)}: {slug}", flush=True)
             logger.info(
                 "[%d/%d] Analyzing (%s) via %s: %s",
                 i + 1, len(markets), category, active_provider.upper(), question[:80],

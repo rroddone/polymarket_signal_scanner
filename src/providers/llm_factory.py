@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 RATE_LIMIT_DELAY_GROQ   = 2.5  # 24 effective RPM — do not reduce
 RATE_LIMIT_DELAY_GEMINI = 5    # 12 effective RPM
-GROQ_FAILOVER_COOLDOWN  = 10
 MAX_RETRIES             = 4
 BACKOFF_BASE            = 20
 MIN_RELEVANCE_SCORE     = 1

@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-import requests
 
 from src.core.config import DISCORD_WEBHOOK_URL
 
@@ -119,7 +118,7 @@ class NotificationService:
             return
 
         payload = self._build_backtest_payload(results)
-        resp = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+        resp = httpx.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
         if resp.status_code == 204:
             logger.info("Backtest results posted to Discord.")
         else:

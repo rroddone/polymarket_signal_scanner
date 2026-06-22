@@ -101,10 +101,9 @@ def _write_crontab(lines: list[str]) -> None:
         pass
 
 
-def get_current_schedule() -> list | dict:
-    """Return [] when cron is unavailable; dict with schedule info otherwise."""
+def get_current_schedule() -> dict:
     if not CRON_AVAILABLE:
-        return []
+        return {"active": False, "hours": 4, "minutes": 0}
     for line in _read_crontab():
         stripped = line.strip()
         if HARVEST_SH in stripped and not stripped.startswith("#"):

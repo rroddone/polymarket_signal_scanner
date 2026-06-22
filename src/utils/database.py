@@ -9,7 +9,6 @@ from src.core.models import BacktestSummary
 
 logger = logging.getLogger(__name__)
 
-VOLUME_THRESHOLD = 1_000
 CLEANUP_DAYS = 30
 
 DEFAULT_WATCHLIST: list[dict[str, str]] = [
@@ -44,10 +43,6 @@ class DatabaseService:
         self._client: Client = create_client(
             SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  # type: ignore[arg-type]
         )
-
-    @property
-    def client(self) -> Client:
-        return self._client
 
     # ------------------------------------------------------------------
     # Ingest
