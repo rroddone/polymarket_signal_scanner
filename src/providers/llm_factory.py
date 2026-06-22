@@ -60,46 +60,32 @@ class LLMFactory:
         question: str,
         tickers: list[str],
         slug: str | None,
-        recent_context: str = "",
     ) -> tuple[dict[str, Any] | None, list[dict[str, str]], str, bool]:
         """
         Route to Groq (primary) or Gemini (failover) with header-aware 429 retry.
         Returns (result, citations, provider_label, triggered_failover).
         """
         if self.use_groq and self.groq is not None:
-            return self._groq_primary(question, tickers, slug, recent_context)
-        return self._gemini_primary(question, tickers, slug, recent_context)
+            return self._groq_primary(question, tickers, slug)
+        return self._gemini_primary(question, tickers, slug)
 
     # ------------------------------------------------------------------
     # Prompt + parsing
     # ------------------------------------------------------------------
 
     @staticmethod
-    def build_prompt(question: str, tickers: list[str], recent_context: str = "") -> str:
+    def build_prompt(question: str, tickers: list[str]) -> str:
         watchlist_str = ", ".join(tickers)
-        context_line  = f"\n{recent_context}" if recent_context else ""
         return (
             f"Hedge fund analyst. Rate how directly this prediction market outcome impacts a "
             f"listed equity. Score conservatively — above 7 only for direct, material impact.\n"
             f"RUBRIC: 9-10=core business/valuation direct hit; 7-8=strong correlated sector shift; "
             f"5-6=indirect/speculative; 1-4=tenuous/atmospheric.\n"
-            f"{context_line}\n"
             f'Market: "{question}"\n'
             f"Tickers: {watchlist_str}\n\n"
             f"Reply with ONLY valid JSON — no markdown, no prose, no extra keys:\n"
             f'{{"ticker":"MSTR","impact_type":"Bearish","rationale":"one sentence","relevance_score":9}}'
         )
-
-    @staticmethod
-    def format_recent_context(signals: list[dict[str, Any]]) -> str:
-        if not signals:
-            return ""
-        items = [
-            f"${s['ticker']}: {s['impact_type']} ({s['relevance_score']})"
-            for s in signals
-            if s.get("ticker") and s.get("impact_type")
-        ]
-        return "Recent signals: " + ", ".join(items) if items else ""
 
     @staticmethod
     def parse_llm_response(text: str) -> dict[str, Any] | None:
@@ -140,12 +126,11 @@ class LLMFactory:
         question: str,
         tickers: list[str],
         slug: str | None,
-        recent_context: str,
     ) -> tuple[dict[str, Any] | None, list[dict[str, str]], str, bool]:
         assert self.groq is not None
         for attempt_429 in range(MAX_429_RETRIES + 1):
             try:
-                result, citations = self._call_groq(question, tickers, slug, recent_context)
+                result, citations = self._call_groq(question, tickers, slug)
                 return result, citations, GROQ_MODEL, False
             except groq_lib.RateLimitError as rate_err:
                 if attempt_429 < MAX_429_RETRIES:
@@ -172,11 +157,10 @@ class LLMFactory:
         question: str,
         tickers: list[str],
         slug: str | None,
-        recent_context: str,
     ) -> tuple[dict[str, Any] | None, list[dict[str, str]], str, bool]:
         for attempt_429 in range(MAX_429_RETRIES + 1):
             try:
-                result, citations = self._call_gemini(question, tickers, slug, recent_context)
+                result, citations = self._call_gemini(question, tickers, slug)
                 return result, citations, GEMINI_MODEL, False
             except genai_errors.ClientError as rate_err:
                 if rate_err.code != 429:
@@ -198,7 +182,7 @@ class LLMFactory:
         logger.info("  Switching to Groq failover for this market.")
         for attempt_429 in range(MAX_429_RETRIES + 1):
             try:
-                result, citations = self._call_groq(question, tickers, slug, recent_context)
+                result, citations = self._call_groq(question, tickers, slug)
                 return result, citations, GROQ_MODEL, True
             except groq_lib.RateLimitError as rate_err:
                 if attempt_429 < MAX_429_RETRIES:
@@ -220,9 +204,8 @@ class LLMFactory:
         question: str,
         tickers: list[str],
         slug: str | None,
-        recent_context: str,
     ) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
-        prompt    = self.build_prompt(question, tickers, recent_context)
+        prompt    = self.build_prompt(question, tickers)
         citations: list[dict[str, str]] = []
         if slug:
             citations.append({"title": "Polymarket Event", "uri": f"{POLYMARKET_BASE}/{slug}"})
@@ -258,9 +241,8 @@ class LLMFactory:
         question: str,
         tickers: list[str],
         slug: str | None,
-        recent_context: str,
     ) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
-        prompt = self.build_prompt(question, tickers, recent_context)
+        prompt = self.build_prompt(question, tickers)
 
         for attempt in range(MAX_RETRIES):
             try:

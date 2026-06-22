@@ -71,10 +71,6 @@ class Harvester:
         tickers = self.db.fetch_watchlist()
         logger.info("Watchlist: %d tickers loaded.", len(tickers))
 
-        recent_context = self.llm.format_recent_context(self.db.fetch_recent_signals())
-        if recent_context:
-            logger.info("Prompt context: %s", recent_context)
-
         markets = self.db.fetch_unanalyzed_markets()
         if limit:
             markets = markets[:limit]
@@ -111,7 +107,6 @@ class Harvester:
                     question=question,
                     tickers=tickers,
                     slug=slug,
-                    recent_context=recent_context,
                 )
             except GracefulExit as ge:
                 logger.info("=== Graceful Stop: %s ===", ge)

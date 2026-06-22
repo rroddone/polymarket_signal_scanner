@@ -134,16 +134,6 @@ class DatabaseService:
             query = query.not_.in_("id", analyzed_ids)
         return query.execute().data
 
-    def fetch_recent_signals(self, n: int = 5) -> list[dict[str, Any]]:
-        result = (
-            self._client.table("equity_signals")
-            .select("ticker, impact_type, relevance_score")
-            .order("created_at", desc=True)
-            .limit(n)
-            .execute()
-        )
-        return result.data or []
-
     def save_signal(
         self,
         market_id: str,
