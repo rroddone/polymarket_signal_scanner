@@ -34,14 +34,23 @@ Polymarket is one of the world's most liquid real-money prediction markets. Hund
      (volume ≥ $1k filter) ────────► markets + market_prices
           │
           ▼
+     3-Tier Triage Gate (MarketPreFilter)
+     ├─ Stage 1: Category blocklist  {Crypto, Sports, Politics, ...}  ──► DROP
+     ├─ Stage 2: Keyword regex  {XRP, NFT, Meme, IPOs?, Daily close, ...}  ► DROP
+     └─ Stage 3: LLM Chain-of-Thought analysis (pass only)
+          │
+          ▼
      LLMFactory
      ├─ Groq llama-3.1-8b-instant  (PRIMARY — 30 RPM, 2.5 s/market)
      │    header-aware Retry-After wait on 429, up to 3 retries
      └─ Gemini 2.0 Flash           (FALLBACK — activates on 3× Groq failure)
           │
-          ├──► equity_signals ─────────────────────────────────► Supabase
+          ├──► score ≥ 1 + ticker not null:
+          │    equity_signals ───────────────────────────────────► Supabase
           │    (ticker, relevance_score, impact_type,
           │     rationale, provider, created_at)
+          │
+          ├──► score = 0 or ticker = null: skipped (logged, not persisted)
           │
           └──► score ≥ 8 ──────────────────────────────────────► Discord Webhook
 
@@ -58,8 +67,9 @@ Polymarket is one of the world's most liquid real-money prediction markets. Hund
 
   Alpha Terminal  (Streamlit)
   ├─ KPI cards        ← backtest_history aggregate
-  ├─ Signal Terminal  ← equity_signals (searchable, filtered)
-  └─ Quant Audit      ← backtest_history per-ticker + log
+  ├─ Signal Terminal  ← equity_signals (Score > 0, searchable, filtered)
+  ├─ Quant Audit      ← backtest_history per-ticker + log
+  └─ Triage Audit Log ← equity_signals (Score = 0, LLM rejections)
 ```
 
 ---
@@ -264,7 +274,7 @@ Alerts fire mid-harvest. If a 150-market run finds a score-9 NVDA signal on mark
 
 ## Scoring Rubric
 
-Every analysis uses a conservative hedge-fund analyst persona on a 1–10 scale.
+Every analysis uses a Chain-of-Thought prompt that forces the model to answer: *"Is there a direct, highly-documented supply chain, balance sheet, or macroeconomic transmission mechanism?"* before committing to a ticker. A tenuous answer produces `score=0, ticker=null` and is never persisted.
 
 | Score | Label | Criteria |
 |---|---|---|
@@ -272,8 +282,9 @@ Every analysis uses a conservative hedge-fund analyst persona on a 1–10 scale.
 | 7–8 | Strong | High-correlation macro event with clear near-term revenue implications |
 | 5–6 | Moderate | Indirect link, speculative sentiment, or low-weight revenue driver |
 | 1–4 | Tenuous | Atmospheric or stretch connection — not actionable |
+| 0 | Rejected | No specific P&L line affected; connection is vague sentiment or announcement noise |
 
-Scores ≥ 8 trigger Discord alerts and form the High Conviction cohort in backtest reporting.
+Scores ≥ 8 trigger Discord alerts and form the High Conviction cohort in backtest reporting. Score-0 rejections are visible in the **Triage Audit Log** in the dashboard.
 
 ---
 
@@ -287,22 +298,23 @@ polymarket_scanner/
 ├── src/
 │   ├── core/
 │   │   ├── config.py          ← PROJECT_ROOT-derived paths; all env vars; LLM constants
-│   │   └── models.py          ← Pydantic: MarketSignal, LLMAnalysisResult, BacktestSummary
+│   │   ├── models.py          ← Pydantic: MarketSignal, LLMAnalysisResult, BacktestSummary
+│   │   └── filters.py         ← MarketPreFilter: Stage 1 category gate + Stage 2 keyword regex
 │   ├── providers/
 │   │   ├── polymarket_client.py  ← Gamma API fetch + Pydantic-validated parse
 │   │   ├── yfinance_client.py    ← 5-min intraday bars + closest_close()
-│   │   └── llm_factory.py        ← Groq primary + Gemini fallback; header-aware 429 retry
+│   │   └── llm_factory.py        ← Groq primary + Gemini fallback; CoT prompt; 429 retry
 │   ├── utils/
 │   │   ├── database.py           ← DatabaseService: all Supabase ops
 │   │   ├── notifications.py      ← NotificationService: Discord signal + backtest alerts
 │   │   ├── cron_utils.py         ← Lock-file state + crontab r/w helpers
 │   │   └── logger.py             ← GracefulExit + setup_logger (auto-creates logs/)
 │   └── jobs/
-│       ├── harvester.py          ← Harvester: pidfile guard + ingest + analyze pipeline
+│       ├── harvester.py          ← Harvester: pidfile guard + triage gate + ingest + analyze
 │       └── backtester.py         ← Backtester: HIT/MISS → backtest_history (per-ticker)
 │
 ├── dashboard/
-│   └── app.py                 ← Alpha Terminal: 4 KPI cards, Signal Terminal, Quant Audit
+│   └── app.py                 ← Alpha Terminal: 4 KPI cards, Signal Terminal, Quant Audit, Triage Log
 │
 ├── database/
 │   ├── schema_export.sql      ← Canonical DDL for all 5 tables

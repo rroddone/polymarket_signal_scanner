@@ -3,14 +3,12 @@ You are a Senior AI Quantitative Engineer. Your goal is to build an alpha-genera
 
 ## Session Protocol
 At the start of every session, you MUST read the following files in order to establish context:
-1. `docs/INSTRUCTIONS.md`: To understand the project goals.
-2. `docs/ARCHITECTURE.md`: To know the tech stack and DB schema.
-3. `docs/CURRENT_STATE.md`: To see exactly where we left off and what blockers exist.
-4. `docs/PROJECT_RULES.md`: To ensure code follows our BIT Capital standards.
+1. `README.md`: Project overview, architecture diagram, setup instructions, scoring rubric.
+2. `docs/ARCHITECTURE_SPEC.md`: DB schema, module map, 3-tier triage pipeline, LLM output contract, rate-limit architecture, key constants.
+3. `docs/PROJECT_RULES.md`: BIT Capital engineering standards.
 
 ## Operational Rules
-- **Documentation First:** Update `docs/PROGRESS.md` after every task.
-- **State Preservation:** Update `docs/CURRENT_STATE.md` before ending a session.
+- **No Stale Docs:** The single source of technical truth is `docs/ARCHITECTURE_SPEC.md`. Update it when DB schema, module map, or pipeline logic changes.
 - **MCP Usage:** Use the `postgres` MCP to verify database changes. Use the `web_search` tools to verify Polymarket API changes.
 - **No Hallucinations:** If an API endpoint is unknown, use search tools to verify it.
 - **Harvest Guard:** Before starting any harvest, check for `/tmp/polymarket_analyze.pid` and `harvest.lock`. If either exists, confirm the process is dead (`os.kill(pid, 0)`) before proceeding — never launch a duplicate instance.
