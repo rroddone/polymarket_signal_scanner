@@ -6,6 +6,7 @@ import time
 from typing import Any
 
 from src.core.config import LOG_FILE, PRIMARY_LLM, PROJECT_ROOT
+from src.core.filters import MarketPreFilter
 from src.providers.llm_factory import (
     LLMFactory,
     RATE_LIMIT_DELAY_GEMINI,
@@ -72,11 +73,26 @@ class Harvester:
         logger.info("Watchlist: %d tickers loaded.", len(tickers))
 
         markets = self.db.fetch_unanalyzed_markets()
+
+        pre_filter = MarketPreFilter()
+        gate_dropped = 0
+        passed: list[dict[str, Any]] = []
+        for m in markets:
+            if pre_filter.failed_category_gate(m):
+                logger.info("Dropped by Deterministic Gate [category]: %s", m.get("question", "")[:80])
+                gate_dropped += 1
+            elif pre_filter.failed_keyword_blocklist(m.get("question", "")):
+                logger.info("Dropped by Deterministic Gate [keyword]: %s", m.get("question", "")[:80])
+                gate_dropped += 1
+            else:
+                passed.append(m)
+        markets = passed
+        logger.info("Deterministic gate: %d dropped, %d forwarded to LLM.", gate_dropped, len(markets))
+
         if limit:
             markets = markets[:limit]
         logger.info(
-            "Pre-filter complete: %d new markets to analyze "
-            "(already-analyzed markets skipped instantly, no sleep).",
+            "%d markets queued for LLM analysis.",
             len(markets),
         )
 
