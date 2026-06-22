@@ -488,7 +488,7 @@ with st.sidebar:
 
     # --- Filters ---
     st.markdown("#### 🔍 Filters")
-    available_tickers = sorted(df_all["Ticker"].unique().tolist()) if not df_all.empty else []
+    available_tickers = sorted(df_all["Ticker"].dropna().unique().tolist()) if not df_all.empty else []
     ticker_filter = st.multiselect("Ticker", options=available_tickers, placeholder="All tickers")
     sentiment_filter = st.multiselect(
         "Sentiment",
@@ -727,9 +727,14 @@ if df_all.empty:
 
 
 # ---------------------------------------------------------------------------
-# Apply sidebar filters
+# Apply filters
 # ---------------------------------------------------------------------------
-df = df_all.copy()
+# Top-level gate: score-0 LLM rejections never appear in the main signal view.
+# They are surfaced separately in the Triage Audit Log expander below.
+df_signals = df_all[df_all["Score"] > 0].copy()
+df_noise   = df_all[df_all["Score"] == 0].copy()
+
+df = df_signals.copy()
 if sentiment_filter:
     df = df[df["Impact"].isin(sentiment_filter)]
 if ticker_filter:
@@ -747,7 +752,7 @@ _tab_signals, _tab_quant = st.tabs(["🖥 Signal Terminal", "📐 Quant Audit"])
 with _tab_signals:
     _col_head, _col_search = st.columns([2, 3])
     with _col_head:
-        st.subheader(f"Signal Terminal  ·  {len(df_all)} signals total")
+        st.subheader(f"Signal Terminal  ·  {len(df_signals)} signals total")
     with _col_search:
         _search = st.text_input(
             "search",
@@ -955,3 +960,34 @@ if st.session_state.get("show_audit_logs", False):
                 "\n".join(_view_lines) if _view_lines else "— no matches —",
                 language=None,
             )
+
+
+# ---------------------------------------------------------------------------
+# Triage Audit Log — AI rejections (score = 0)
+# ---------------------------------------------------------------------------
+st.divider()
+with st.expander("🧹 Triage Audit Log (Noise Rejected)"):
+    if df_noise.empty:
+        st.caption(
+            "No AI rejections recorded yet. LLM-rejected markets (score=0, ticker=null) "
+            "will appear here once persisted. Deterministic gate drops (category/keyword) "
+            "are visible in the Audit Log above."
+        )
+    else:
+        st.caption(
+            f"**{len(df_noise)}** markets rejected by AI with score=0. "
+            "The reasoning column shows the model's internal chain-of-thought for each rejection."
+        )
+        _noise_display = (
+            df_noise[["Question", "Rationale"]]
+            .rename(columns={"Rationale": "AI Rejection Reasoning"})
+        )
+        st.dataframe(
+            _noise_display,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Question":             st.column_config.TextColumn("Market Title",          width="large"),
+                "AI Rejection Reasoning": st.column_config.TextColumn("Fundamental Reasoning", width="large", max_chars=400),
+            },
+        )
