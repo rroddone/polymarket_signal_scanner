@@ -470,7 +470,7 @@ bt_tickers = load_backtest_tickers()
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.title("⚡ Alpha Terminal")
-    st.caption("Polymarket → Equity Intelligence · BIT Capital")
+    st.caption("Polymarket → Equity Intelligence")
 
     st.markdown(f"**{get_ai_status(df_all)}**")
     st.caption(f"Last updated: **{_last_updated}**")
@@ -641,7 +641,7 @@ with st.sidebar:
 # Header
 # ---------------------------------------------------------------------------
 st.title("⚡ Alpha Terminal")
-st.caption("AI-powered equity signal intelligence from prediction markets · BIT Capital Research")
+st.caption("AI-powered equity signal intelligence from prediction markets")
 st.divider()
 
 if _db_error:

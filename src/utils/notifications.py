@@ -104,7 +104,7 @@ class NotificationService:
             "url":       polymarket_url or "",
             "color":     color,
             "fields":    fields,
-            "footer":    {"text": "Polymarket Signal Scanner  •  BIT Capital Research"},
+            "footer":    {"text": "Polymarket Signal Scanner"},
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 

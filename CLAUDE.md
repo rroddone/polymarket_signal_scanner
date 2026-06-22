@@ -5,7 +5,7 @@ You are a Senior AI Quantitative Engineer. Your goal is to build an alpha-genera
 At the start of every session, you MUST read the following files in order to establish context:
 1. `README.md`: Project overview, architecture diagram, setup instructions, scoring rubric.
 2. `docs/ARCHITECTURE_SPEC.md`: DB schema, module map, 3-tier triage pipeline, LLM output contract, rate-limit architecture, key constants.
-3. `docs/PROJECT_RULES.md`: BIT Capital engineering standards.
+3. `docs/PROJECT_RULES.md`: Engineering standards.
 
 ## Operational Rules
 - **No Stale Docs:** The single source of technical truth is `docs/ARCHITECTURE_SPEC.md`. Update it when DB schema, module map, or pipeline logic changes.
