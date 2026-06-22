@@ -31,3 +31,6 @@ data/
 .coverage
 htmlcov/
 streamlit_app_secrets_template.toml
+
+# Personal — not for version control
+docs/INTERVIEW_PREP_MASTER.md
