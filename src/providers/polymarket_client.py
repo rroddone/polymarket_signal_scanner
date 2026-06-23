@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -111,9 +111,11 @@ class PolymarketClient:
         end_date: str | None = None
         if end_date_raw:
             try:
-                end_date = datetime.fromisoformat(
-                    end_date_raw.replace("Z", "+00:00")
-                ).isoformat()
+                resolved = datetime.fromisoformat(end_date_raw.replace("Z", "+00:00"))
+                # ponytail: drop events the API returns as active=true but whose end_date is past
+                if resolved < datetime.now(timezone.utc):
+                    return None
+                end_date = resolved.isoformat()
             except (ValueError, AttributeError):
                 end_date = None
 
